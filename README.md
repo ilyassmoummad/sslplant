@@ -1,4 +1,4 @@
-# Self-Supervised Learning of Plant Image Representations (arXiv 2026)
+# Self-Supervised Learning of Plant Image Representations (ICPR CVBMC 2026)
 
 Authors: [Ilyass Moummad](https://ilyassmoummad.github.io/), [Kawtar Zaher](https://scholar.google.com/citations?user=I-BoVeAAAAAJ&hl=en), [Hervé Goëau](https://scholar.google.com/citations?user=zBZYEzAAAAAJ&hl=fr), [Jean-Christophe Lombardo](http://www-sop.inria.fr/members/Jean-Christophe.Lombardo/), [Pierre Bonnet](https://agents.cirad.fr/Pierre+BONNET), [Alexis Joly](https://sites.google.com/view/alexis-joly-inria/home)
 
