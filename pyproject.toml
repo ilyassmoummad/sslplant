@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sslplant"
+version = "0.0.1"
+description = "SimDINOv2 for Self-Supervised Representation Learning of Plant Images"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "torchvision",
+    "omegaconf",
+    "torchmetrics",
+    "fvcore",
+    "iopath",
+    "submitit",
+    "einops",
+    "timm",
+]
+
+[project.optional-dependencies]
+train = [
+    "wandb",
+    "xformers",
+]
+
+[tool.setuptools.packages.find]
+include = ["simdinov2*"]
