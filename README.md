@@ -6,7 +6,7 @@ Authors: [Ilyass Moummad](https://ilyassmoummad.github.io/), [Kawtar Zaher](http
 
 ---
 
-PyTorch implementation of training self-supervised models on iNaturalist 2021 Plantae dataset (~1.1M images) using [SimDINOv2](https://github.com/RobinWu218/SimDINO).
+PyTorch implementation of training self-supervised plant image representations using [SimDINOv2](https://github.com/RobinWu218/SimDINO). The released models include the original checkpoints trained on the iNaturalist 2021 Plantae subset (~1.1M images), as well as a new large-scale checkpoint trained from scratch on Pl@ntNet-22M (private data) together with ImageNet-1K.
 
 <div align="center">
   <image src="assets/ssl.png" width="840px" />
@@ -15,13 +15,14 @@ PyTorch implementation of training self-supervised models on iNaturalist 2021 Pl
 
 
 ## Pretrained models
-We provide checkpoints for both ViT-B and ViT-L pretrained on iNaturalist 2021 Plantae subset for 100 epochs following configs detailed in our [paper](https://arxiv.org/abs/2604.27538).
+We provide ViT-B and ViT-L checkpoints pretrained on the iNaturalist 2021 Plantae subset for 100 epochs following the configurations detailed in our [paper](https://arxiv.org/abs/2604.27538). We additionally release a scaled-up ViT-L model trained from scratch on Pl@ntNet-22M (private data) and ImageNet-1K; this model was produced after the paper and is not part of the paper's experiments.
 
 <table style="margin: auto">
   <thead>
     <tr>
       <th>model</th>
       <th># of<br />params</th>
+      <th>training data</th>
       <th>PlantNet<br>(5-shot)</th>
       <th>PlantVillage<br>(5-shot)</th>
       <th>Med. Leaf<br>(5-shot)</th>
@@ -33,6 +34,7 @@ We provide checkpoints for both ViT-B and ViT-L pretrained on iNaturalist 2021 P
     <tr>
       <td>ViT-B/16</td>
       <td align="right">86 M</td>
+      <td>iNaturalist 2021 Plantae</td>
       <td align="right">87.9 &plusmn; 0.7</td>
       <td align="right">85.4 &plusmn; 0.5</td>
       <td align="right">97.8 &plusmn; 0.7</td>
@@ -42,16 +44,76 @@ We provide checkpoints for both ViT-B and ViT-L pretrained on iNaturalist 2021 P
     <tr>
       <td>ViT-L/16</td>
       <td align="right">300 M</td>
+      <td>iNaturalist 2021 Plantae</td>
       <td align="right">88.2 &plusmn; 1.6</td>
       <td align="right">86.6 &plusmn; 0.1</td>
       <td align="right">98.5 &plusmn; 0.5</td>
       <td align="right">49.0 &plusmn; 1.1</td>
       <td><a href="https://drive.google.com/file/d/1OTs0XETGDwIs4Hvs9jukvFAifSlcH0xl/view?usp=sharing">ckpt</a></td>
     </tr>
+    <tr>
+      <td>ViT-L/16 (scaled)</td>
+      <td align="right">303 M</td>
+      <td>Pl@ntNet-22M (private) + ImageNet-1K</td>
+      <td align="right"><strong>95.0 &plusmn; 0.9</strong></td>
+      <td align="right"><strong>87.8 &plusmn; 1.5</strong></td>
+      <td align="right"><strong>99.7 &plusmn; 0.0</strong></td>
+      <td align="right"><strong>55.9 &plusmn; 0.9</strong></td>
+      <td><a href="https://drive.google.com/file/d/1dyOfeOz8zGRwf3UnuWuTXDcr-mEyZ7YK/view?usp=sharing">ckpt</a> / <a href="https://huggingface.co/PlantNet/simdinov2-vit-large-pn22m-in1k">Hugging Face</a></td>
+    </tr>
   </tbody>
 </table>
 
-Note: We are currently working on scaling up our approach on [Pl@ntNet](https://plantnet.org/en/). Stay tuned for more model checkpoints in the future.
+The scaled ViT-L/16 checkpoint is a feature extractor without a classification head or species vocabulary. It is also available in native Hugging Face Transformers format.
+
+
+### Inference with the Hugging Face model
+
+Install the runtime dependencies:
+
+```sh
+pip install "torch>=2.4" "transformers>=4.48,<6" pillow requests safetensors
+```
+
+Load an image and extract its global, register-token, and patch-level representations directly from [Hugging Face](https://huggingface.co/PlantNet/simdinov2-vit-large-pn22m-in1k):
+
+```python
+import torch
+from PIL import Image
+import requests
+from transformers import AutoImageProcessor, AutoModel
+
+model_id = "PlantNet/simdinov2-vit-large-pn22m-in1k"
+image_url = "https://raw.githubusercontent.com/plantnet/PlantNet-300K/main/images/1.jpg"
+
+response = requests.get(image_url, stream=True, timeout=30)
+response.raise_for_status()
+image = Image.open(response.raw).convert("RGB")
+
+# Transformers 5.x: explicitly select the PIL preprocessing backend.
+processor = AutoImageProcessor.from_pretrained(model_id, backend="pil")
+model = AutoModel.from_pretrained(model_id).eval()
+
+inputs = processor(images=image, return_tensors="pt")
+with torch.inference_mode():
+    outputs = model(**inputs)
+
+# Global image descriptor: [batch, 1024]
+global_embedding = outputs.pooler_output
+
+# Token order: [CLS], four register tokens, then patch tokens.
+register_embeddings = outputs.last_hidden_state[:, 1:5]  # [batch, 4, 1024]
+patch_embeddings = outputs.last_hidden_state[:, 5:]      # [batch, 196, 1024]
+```
+
+Replace `image_url` with your own URL, or load a local image with `Image.open("plant.jpg").convert("RGB")`. For GPU inference, move both the model and inputs to CUDA:
+
+```python
+model = model.to("cuda")
+inputs = inputs.to("cuda")
+```
+
+For strict reproducibility with Transformers 4.x, initialize the processor with `use_fast=False` instead of `backend="pil"`.
 
 
 ## Installation
